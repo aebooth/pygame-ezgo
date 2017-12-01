@@ -163,7 +163,7 @@ class Sprite(pygame.sprite.Sprite):
 
     # WARNING: Fails silently!!
     def set_active_animation(self, animation_name):
-        if animation_name in self.animations.keys():
+        if animation_name in self.animations:
             self.animation = self.animations[animation_name]
             self.image = self.animation.get_frame()
 
@@ -249,12 +249,13 @@ class Viewport:
 class Spritesheet:
     def __init__(self,file_path,sprite_width,sprite_height,sprite_padding=0):
         self.sheet = pygame.image.load(file_path)
+        self.sheet.convert()
         self.padding = sprite_padding
-        self.sprite_rect = pygame.Rect(sprite_padding,sprite_padding,sprite_width,sprite_height)
+        self.sprite_rect = pygame.Rect(self.padding,self.padding,sprite_width,sprite_height)
         self.sequences = {}
 
     def add_sequence(self,name,start_row,num_frames):
-        self.sprite_rect.y = self.sprite_rect.y + start_row * (self.padding + self.sprite_rect.height)
+        self.sprite_rect.move(0,start_row * (self.padding + self.sprite_rect.height))
         frames = []
         for i in range(num_frames):
             frames.append(self.sheet.subsurface(self.sprite_rect))
@@ -266,17 +267,18 @@ class Animation:
         self.frames = frame_sequence
         self.current_frame = 0
         # Number of frames to wait before advancing
-        self.advance_rate = 1
+        self.advance_rate = 60
         self.frame_counter = 0
 
     def get_frame(self):
         return self.frames[self.current_frame]
 
     def advance(self):
-        if self.frame_counter >= self.advance_rate:
+        if self.frame_counter < self.advance_rate:
+            self.frame_counter = self.frame_counter + 1
+        else:
             self.current_frame = self.current_frame + 1
             if self.current_frame >= len(self.frames):
                 self.current_frame = 0
             self.frame_counter = 0
-        else:
-            self.frame_counter = self.frame_counter + 1
+

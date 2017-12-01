@@ -7,20 +7,26 @@ class World:
         self.pygame_window = pygame.display.set_mode((width,height))
         pygame.display.set_caption(name)
         self.views = {"blank":pygame.Surface((self.pygame_window.get_rect().width,self.pygame_window.get_rect().height))}
+        self.current_view = self.views["blank"]
         self.background_items = pygame.sprite.Group()
         self.npc_sprites = pygame.sprite.Group()
         self.active_items = pygame.sprite.Group()
         self.foreground_items = pygame.sprite.Group()
-        self.player_sprite = Sprite(width//2,height//2)
-        self.hud_view = Sprite(0,0,pygame.Surface(width,height))
-        self.viewport = Viewport(self.views["blank"],self.pygame_window)
+        self.player_sprite = Sprite(width//2,height//2,bounding_rect=self.current_view.get_rect())
+        self.hud_view = Sprite(0,0,pygame.Surface((width,height)))
+        self.viewport = Viewport(self.current_view,self.pygame_window)
         self.running = False
 
     # don't override this
     def start(self):
+        clock = pygame.time.Clock()
         self.running = True
         while self.running:
+            self.pygame_window.fill((255,255,255))
             self.__run__()
+            pygame.display.flip()
+            clock.tick(60)
+        pygame.quit()
 
     # maybe override this
     def handle_quit(self):
@@ -51,7 +57,7 @@ class World:
         active_items_hit = pygame.sprite.spritecollide(self.player_sprite,self.active_items,dokill=False)
         if len(active_items_hit) > 0:
             self.player_sprite.move(-dx,-dy)
-            self.player_sprite.calculate_rect(self.viewport)
+            self.player_sprite.calculate_rect(self.viewport)#Now busted--update if necessary
 
     # override this
     def handle_npc_interactions(self):
@@ -66,6 +72,11 @@ class World:
 
     def update_hud(self):
         self.hud_view.update()
+
+    def update_viewport(self):
+        self.viewport.position_sprite(self.player_sprite)
+        self.viewport.center_horizontal_on(self.player_sprite)
+        self.viewport.center_vertical_on(self.player_sprite)
 
     # maybe override this
     def draw(self):
@@ -92,13 +103,15 @@ class World:
         self.update_environment()
         self.handle_npc_interactions()
         self.handle_active_item_interactions()
-        self.update_environment() # YES--I did mean to do this twice!
-        self.update_player() # YES--I did mean to do this twice
+        #self.update_environment() # YES--I did mean to do this twice!
+        #self.update_player() # YES--I did mean to do this twice
         self.update_hud()
+        self.update_viewport()
         self.draw()
+        
 
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, x=0, y=0, animation=None, image=pygame.Surface((50,50)).fill((255,0,0)), bounding_rect=None):
+    def __init__(self, x=0, y=0, animation=None, image=pygame.Surface((50,50)), bounding_rect=None):
         pygame.sprite.Sprite.__init__(self)
         self.animations = {}
         self.animations["default"] = animation
@@ -116,7 +129,7 @@ class Sprite(pygame.sprite.Sprite):
             self.ymax = None
 
     def move(self,dx,dy):
-        if self.bounding_rect != None:
+        if self.bounding_rect is not None:
             destx = self.x + dx
             if destx < 0:
                 self.x = 0
@@ -134,20 +147,13 @@ class Sprite(pygame.sprite.Sprite):
                 self.y = self.ymax
         else:
             self.x = self.x + dx
-            self.y = self.x + dx
+            self.y = self.y + dy
 
-    def set_bounds(self,bounding_rect):
+    def set_bounding_rect(self,bounding_rect):
         self.bounding_rect = bounding_rect
         if bounding_rect is not None:
             self.xmax = bounding_rect.width
             self.ymax = bounding_rect.height
-
-    def calculate_rect(self,viewport=None):
-        if viewport is not None:
-            self.rect = pygame.Rect(self.x,self.y,self.image.get_rect().width,self.image.get_rect().height).clip(viewport.get_rect())
-        else:
-            self.rect = pygame.Rect(self.x,self.y,self.image.get_rect().width,self.image.get_rect().height)
-        return self.rect
 
     # WARNING: Fails silently!!
     def set_active_animation(self, animation_name):
@@ -163,7 +169,18 @@ class Sprite(pygame.sprite.Sprite):
         screen.blit(self.image,self.rect)
 
     def update(self):
-        pass
+        pressed = pygame.key.get_pressed()
+        dy = 0
+        dx = 0
+        if pressed[pygame.K_UP]:
+            dy = -5
+        if pressed[pygame.K_DOWN]:
+            dy = 5
+        if pressed[pygame.K_RIGHT]:
+            dx = 5
+        if pressed[pygame.K_LEFT]:
+            dx = -5
+        self.move(dx,dy)
 
 class Viewport:
     def __init__(self,view,screen):
@@ -199,7 +216,7 @@ class Viewport:
             self.rect.y = self.ymax
 
     def center_horizontal_on(self,sprite):
-        destx = sprite.rect.x + sprite.rect.width//2 - self.width//2
+        destx = sprite.x + sprite.rect.width//2 - self.width//2
         if destx < 0:
             self.rect.x = 0
         elif destx <= self.xmax:
@@ -208,13 +225,17 @@ class Viewport:
             self.rect.x = self.xmax
 
     def center_vertical_on(self, sprite):
-        desty = sprite.rect.y + sprite.rect.height//2 - self.height//2
+        desty = sprite.y + sprite.rect.height//2 - self.height//2
         if desty < 0:
             self.rect.y = 0
         elif desty <= self.ymax:
             self.rect.y = desty
         else:
             self.rect.y = self.ymax
+
+    def position_sprite(self,sprite):
+        sprite.rect.x = sprite.x - self.rect.x
+        sprite.rect.y = sprite.y - self.rect.y
 
     def draw(self):
         self.screen.blit(self.view.subsurface(self.rect),self.screen.get_rect())

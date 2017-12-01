@@ -78,6 +78,13 @@ class World:
         self.viewport.center_horizontal_on(self.player_sprite)
         self.viewport.center_vertical_on(self.player_sprite)
 
+    #Warning: Fails Silently!
+    def set_current_view(self,view_name):
+        if view_name in self.views:
+            self.current_view = self.views[view_name]
+            self.viewport.set_view(self.current_view)
+            self.player_sprite.set_bounding_rect(self.current_view.get_rect())
+
     # maybe override this
     def draw(self):
         # draw current view
@@ -113,8 +120,7 @@ class World:
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, x=0, y=0, animation=None, image=pygame.Surface((50,50)), bounding_rect=None):
         pygame.sprite.Sprite.__init__(self)
-        self.animations = {}
-        self.animations["default"] = animation
+        self.animations = {"default":animation}
         self.animation = self.animations["default"]
         self.image = image
         self.x = x
@@ -122,8 +128,8 @@ class Sprite(pygame.sprite.Sprite):
         self.rect = pygame.Rect(self.x,self.y,self.image.get_rect().width,self.image.get_rect().height)
         self.bounding_rect = bounding_rect
         if bounding_rect is not None:
-            self.xmax = bounding_rect.width
-            self.ymax = bounding_rect.height
+            self.xmax = bounding_rect.width-self.rect.width
+            self.ymax = bounding_rect.height - self.rect.height
         else:
             self.xmax = None
             self.ymax = None
@@ -152,8 +158,8 @@ class Sprite(pygame.sprite.Sprite):
     def set_bounding_rect(self,bounding_rect):
         self.bounding_rect = bounding_rect
         if bounding_rect is not None:
-            self.xmax = bounding_rect.width
-            self.ymax = bounding_rect.height
+            self.xmax = bounding_rect.width-self.rect.width
+            self.ymax = bounding_rect.height-self.rect.height
 
     # WARNING: Fails silently!!
     def set_active_animation(self, animation_name):
@@ -173,13 +179,13 @@ class Sprite(pygame.sprite.Sprite):
         dy = 0
         dx = 0
         if pressed[pygame.K_UP]:
-            dy = -5
+            dy = -20
         if pressed[pygame.K_DOWN]:
-            dy = 5
+            dy = 20
         if pressed[pygame.K_RIGHT]:
-            dx = 5
+            dx = 20
         if pressed[pygame.K_LEFT]:
-            dx = -5
+            dx = -20
         self.move(dx,dy)
 
 class Viewport:

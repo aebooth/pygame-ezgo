@@ -255,11 +255,12 @@ class Spritesheet:
         self.sequences = {}
 
     def add_sequence(self,name,start_row,num_frames):
-        self.sprite_rect.move(0,start_row * (self.padding + self.sprite_rect.height))
+        self.sprite_rect.y = start_row * (self.padding + self.sprite_rect.height)
+        self.sprite_rect.x = self.padding
         frames = []
         for i in range(num_frames):
             frames.append(self.sheet.subsurface(self.sprite_rect))
-            self.sprite_rect.move(self.padding + self.sprite_rect.width , 0)
+            self.sprite_rect.move_ip(self.padding + self.sprite_rect.width , 0)
         self.sequences[name] = frames
 
 class Animation:
@@ -267,7 +268,7 @@ class Animation:
         self.frames = frame_sequence
         self.current_frame = 0
         # Number of frames to wait before advancing
-        self.advance_rate = 60
+        self.advance_rate = 10
         self.frame_counter = 0
 
     def get_frame(self):

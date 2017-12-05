@@ -23,12 +23,12 @@ class World:
         self.running = True
         while self.running:
             self.pygame_window.fill((255,255,255))
-            self.__run__()
+            self.run()
             pygame.display.flip()
             clock.tick(60)
         pygame.quit()
 
-    # maybe override this
+    # only override this if you have a good reason to
     def handle_quit(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -40,12 +40,14 @@ class World:
         if pressed[pygame.K_t]:
             print("pressing 't' for test works")
 
+    # only override this if you have a good reason to
     def update_environment(self):
         self.background_items.update()
         self.npc_sprites.update()
         self.active_items.update()
         self.foreground_items.update()
 
+    # don't override this 
     def update_player(self):
         self.player_sprite.update()
 
@@ -65,27 +67,31 @@ class World:
         for npc in npcs_hit:
             print("hit npc at " + str((npc.x,npc.y)))
 
+    # override this
     def handle_active_item_interactions(self):
         active_items_hit = pygame.sprite.spritecollide(self.player_sprite, self.active_items, dokill=False)
         for active_item in active_items_hit:
             print("hit active_item at " + str((active_item.x, active_item.y)))
 
+    # don't override this
     def update_hud(self):
         self.hud_view.update()
 
+    # don't override this
     def update_viewport(self):
         self.viewport.position_sprite(self.player_sprite)
         self.viewport.center_horizontal_on(self.player_sprite)
         self.viewport.center_vertical_on(self.player_sprite)
 
-    #Warning: Fails Silently!
+    # don't override this
+    # Warning: Fails Silently!
     def set_current_view(self,view_name):
         if view_name in self.views:
             self.current_view = self.views[view_name]
             self.viewport.set_view(self.current_view)
             self.player_sprite.set_bounding_rect(self.current_view.get_rect())
 
-    # maybe override this
+    # only override this if you have a good reason to
     def draw(self):
         # draw current view
         self.viewport.draw()
@@ -102,16 +108,14 @@ class World:
         # draw remaining HUD elements
         self.hud_view.draw(self.pygame_window)
 
-    #
-    def __run__(self):
+    # only override this if you have a good reason to
+    def run(self):
         self.handle_quit()
         self.handle_keypresses()
         self.update_player()
         self.update_environment()
         self.handle_npc_interactions()
         self.handle_active_item_interactions()
-        #self.update_environment() # YES--I did mean to do this twice!
-        #self.update_player() # YES--I did mean to do this twice
         self.update_hud()
         self.update_viewport()
         self.draw()
@@ -134,6 +138,7 @@ class Sprite(pygame.sprite.Sprite):
             self.xmax = None
             self.ymax = None
 
+    # don't override this
     def move(self,dx,dy):
         if self.bounding_rect is not None:
             destx = self.x + dx
@@ -155,25 +160,30 @@ class Sprite(pygame.sprite.Sprite):
             self.x = self.x + dx
             self.y = self.y + dy
 
+    # don't override this
     def set_bounding_rect(self,bounding_rect):
         self.bounding_rect = bounding_rect
         if bounding_rect is not None:
             self.xmax = bounding_rect.width-self.rect.width
             self.ymax = bounding_rect.height-self.rect.height
 
+    # don't override this
     # WARNING: Fails silently!!
     def set_active_animation(self, animation_name):
         if animation_name in self.animations:
             self.animation = self.animations[animation_name]
             self.image = self.animation.get_frame()
 
+    # don't override this
     def animate(self):
         self.animation.advance()
         self.image = self.animation.get_frame()
 
+    # don't override this
     def draw(self, screen):
         screen.blit(self.image,self.rect)
 
+    # override this
     def update(self):
         pressed = pygame.key.get_pressed()
         dy = 0

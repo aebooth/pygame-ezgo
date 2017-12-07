@@ -8,15 +8,33 @@ class World:
         pygame.display.set_caption(name)
         self.views = {"blank":pygame.Surface((self.pygame_window.get_rect().width,self.pygame_window.get_rect().height))}
         self.current_view = self.views["blank"]
+        self.internal_boundaries = {"blank":[[0 for x in range(width)] for x in range(height)]}
+        self.current_internal_boundaries = self.internal_boundaries["blank"]
         self.background_items = pygame.sprite.Group()
         self.npc_sprites = pygame.sprite.Group()
         self.active_items = pygame.sprite.Group()
         self.foreground_items = pygame.sprite.Group()
-        self.player_sprite = Sprite(width//2,height//2,bounding_rect=self.current_view.get_rect())
-        self.hud_view = Sprite(0,0,pygame.Surface((width,height)))
+        self.player_sprite = Sprite(self, width//2,height//2)
+        self.hud_view = Sprite(self,0,0,pygame.Surface((width,height)))
         self.viewport = Viewport(self.current_view,self.pygame_window)
         self.running = False
 
+    # don't override this!!!!
+    def add_view(self,name,view,view_internal_boundaries=None):
+        self.views[name] = view
+        if view_internal_boundaries is None:
+            self.internal_boundaries[name] = [[0 for x in range(view.get_rect().width)] for y in range(view.get_rect().height)]
+        else:
+            arr = [[0 for x in range(view_internal_boundaries.get_rect().width)] for y in range(view_internal_boundaries.get_rect().height)]
+            pygame.pixelcopy.surface_to_array(arr,view_internal_boundaries,'G')
+            for x in range(len(arr[0])):
+                for y in range(len(arr)):
+                    if arr[x][y] < 200:
+                        arr[x][y] = 1
+                    else:
+                        arr[x][y] = 0
+            self.internal_boundaries[name] = arr
+    
     # don't override this
     def start(self):
         clock = pygame.time.Clock()
@@ -51,16 +69,6 @@ class World:
     def update_player(self):
         self.player_sprite.update()
 
-    # override this if you want to do anything other than stop the sprite on collision
-    def ensure_move_validity(self,dx,dy):
-        # This method is a turd to figure out!
-        self.player_sprite.move(dx,dy)
-        self.player_sprite.calculate_rect(self.viewport)
-        active_items_hit = pygame.sprite.spritecollide(self.player_sprite,self.active_items,dokill=False)
-        if len(active_items_hit) > 0:
-            self.player_sprite.move(-dx,-dy)
-            self.player_sprite.calculate_rect(self.viewport)#Now busted--update if necessary
-
     # override this
     def handle_npc_interactions(self):
         npcs_hit = pygame.sprite.spritecollide(self.player_sprite,self.npc_sprites,dokill=False)
@@ -79,7 +87,6 @@ class World:
 
     # don't override this
     def update_viewport(self):
-        self.viewport.position_sprite(self.player_sprite)
         self.viewport.center_horizontal_on(self.player_sprite)
         self.viewport.center_vertical_on(self.player_sprite)
 
@@ -88,25 +95,25 @@ class World:
     def set_current_view(self,view_name):
         if view_name in self.views:
             self.current_view = self.views[view_name]
+            self.current_internal_boundaries = self.internal_boundaries[view_name]
             self.viewport.set_view(self.current_view)
-            self.player_sprite.set_bounding_rect(self.current_view.get_rect())
 
     # only override this if you have a good reason to
     def draw(self):
-        # draw current view
-        self.viewport.draw()
         # draw background_items
-        self.background_items.draw(self.pygame_window)
+        self.background_items.draw(self.current_view)
         # draw npc_sprites
-        self.npc_sprites.draw(self.pygame_window)
+        self.npc_sprites.draw(self.current_view)
         # draw active_items
-        self.active_items.draw(self.pygame_window)
+        self.active_items.draw(self.current_view)
         # draw player_sprite
-        self.player_sprite.draw(self.pygame_window)
+        self.player_sprite.draw(self.current_view)
         # draw foreground_items
-        self.foreground_items.draw(self.pygame_window)
+        self.foreground_items.draw(self.current_view)
         # draw remaining HUD elements
-        self.hud_view.draw(self.pygame_window)
+        self.hud_view.draw(self.current_view)
+        # draw current compound view
+        self.viewport.draw()
 
     # only override this if you have a good reason to
     def run(self):
@@ -122,50 +129,46 @@ class World:
         
 
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, x=0, y=0, animation=None, image=pygame.Surface((50,50)), bounding_rect=None):
+    def __init__(self, world, x=0, y=0, animation=None, image=pygame.Surface((50,50))):
         pygame.sprite.Sprite.__init__(self)
         self.animations = {"default":animation}
         self.animation = self.animations["default"]
         self.image = image
         self.x = x
         self.y = y
+        #The Sprite's rect represents its position in the viewport, not the world
         self.rect = pygame.Rect(self.x,self.y,self.image.get_rect().width,self.image.get_rect().height)
-        self.bounding_rect = bounding_rect
-        if bounding_rect is not None:
-            self.xmax = bounding_rect.width-self.rect.width
-            self.ymax = bounding_rect.height - self.rect.height
-        else:
-            self.xmax = None
-            self.ymax = None
+        self.world = world
 
     # don't override this
     def move(self,dx,dy):
-        if self.bounding_rect is not None:
-            destx = self.x + dx
-            if destx < 0:
-                self.x = 0
-            elif destx <= self.xmax:
-                self.x = destx
-            else:
-                self.x = self.xmax
+        destx = self.x + dx
+        desty = self.y + dy
+        # Check moves against the view's outside boundaries
+        xmax =self.world.current_view.get_rect().width - self.rect.width
+        ymax = self.world.current_view.get_rect().height - self.rect.height
+        
+        if destx < 0:
+            destx = 0
+        elif destx > self.xmax:
+            destx = self.xmax
 
-            desty = self.y + dy
-            if desty < 0:
-                self.y = 0
-            elif desty <= self.ymax:
-                self.y = desty
-            else:
-                self.y = self.ymax
+        if desty < 0:
+            desty = 0
+        elif desty > self.ymax:
+            desty = self.ymax
+        # Check moves against the view's internal boundaries
+        
+        for x in range(destx,self.rect.width + destx):
+            for y in range(desty,self.rect.height + desty):
+                if world.current_internal_boundaries[x][y] == 1:
+                    broken = True
+                    break
+            if broken:
+                break
         else:
-            self.x = self.x + dx
-            self.y = self.y + dy
-
-    # don't override this
-    def set_bounding_rect(self,bounding_rect):
-        self.bounding_rect = bounding_rect
-        if bounding_rect is not None:
-            self.xmax = bounding_rect.width-self.rect.width
-            self.ymax = bounding_rect.height-self.rect.height
+            self.x = destx
+            self.y = desty
 
     # don't override this
     # WARNING: Fails silently!!
@@ -180,8 +183,8 @@ class Sprite(pygame.sprite.Sprite):
         self.image = self.animation.get_frame()
 
     # don't override this
-    def draw(self, screen):
-        screen.blit(self.image,self.rect)
+    def draw(self, view):
+        view.blit(self.image,self.rect)
 
     # override this
     def update(self):
@@ -197,6 +200,7 @@ class Sprite(pygame.sprite.Sprite):
         if pressed[pygame.K_LEFT]:
             dx = -20
         self.move(dx,dy)
+        self.position_self()
 
 class Viewport:
     def __init__(self,view,screen):
@@ -248,10 +252,6 @@ class Viewport:
             self.rect.y = desty
         else:
             self.rect.y = self.ymax
-
-    def position_sprite(self,sprite):
-        sprite.rect.x = sprite.x - self.rect.x
-        sprite.rect.y = sprite.y - self.rect.y
 
     def draw(self):
         self.screen.blit(self.view.subsurface(self.rect),self.screen.get_rect())

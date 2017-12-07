@@ -27,7 +27,7 @@ def handle_keypresses():
         world.player_sprite.animate()
 
 world = ezgo.World()
-world.views["level1"] = pygame.image.load("map.png")
+world.add_view("level1",pygame.image.load("map.png"),None)
 world.set_current_view("level1")
 
 superblock = ezgo.Spritesheet("superblock.png",50,50,10)

@@ -1,4 +1,5 @@
 import pygame
+import numpy as np
 import math
 
 class World:
@@ -15,7 +16,8 @@ class World:
         self.active_items = pygame.sprite.Group()
         self.foreground_items = pygame.sprite.Group()
         self.player_sprite = Sprite(self, width//2,height//2)
-        self.hud_view = Sprite(self,0,0,pygame.Surface((width,height)))
+        self.hud_view = Sprite(self,0,0,image=pygame.Surface((width,height)))
+        self.hud_view.image.set_alpha(0)
         self.viewport = Viewport(self.current_view,self.pygame_window)
         self.running = False
 
@@ -23,16 +25,11 @@ class World:
     def add_view(self,name,view,view_internal_boundaries=None):
         self.views[name] = view
         if view_internal_boundaries is None:
-            self.internal_boundaries[name] = [[0 for x in range(view.get_rect().width)] for y in range(view.get_rect().height)]
+            self.internal_boundaries[name] = np.zeros((view.get_rect().height,view.get_rect().width))
         else:
-            arr = [[0 for x in range(view_internal_boundaries.get_rect().width)] for y in range(view_internal_boundaries.get_rect().height)]
-            pygame.pixelcopy.surface_to_array(arr,view_internal_boundaries,'G')
-            for x in range(len(arr[0])):
-                for y in range(len(arr)):
-                    if arr[x][y] < 200:
-                        arr[x][y] = 1
-                    else:
-                        arr[x][y] = 0
+            arr = np.zeros((view_internal_boundaries.get_rect().width,view_internal_boundaries.get_rect().height),np.int32)
+            pygame.pixelcopy.surface_to_array(arr, view_internal_boundaries, 'G')
+            arr = arr.T > 50
             self.internal_boundaries[name] = arr
     
     # don't override this
@@ -100,20 +97,22 @@ class World:
 
     # only override this if you have a good reason to
     def draw(self):
+        #setup dummy view
+        view = self.current_view.copy()
         # draw background_items
-        self.background_items.draw(self.current_view)
+        self.background_items.draw(view)
         # draw npc_sprites
-        self.npc_sprites.draw(self.current_view)
+        self.npc_sprites.draw(view)
         # draw active_items
-        self.active_items.draw(self.current_view)
+        self.active_items.draw(view)
         # draw player_sprite
-        self.player_sprite.draw(self.current_view)
+        self.player_sprite.draw(view)
         # draw foreground_items
-        self.foreground_items.draw(self.current_view)
-        # draw remaining HUD elements
-        self.hud_view.draw(self.current_view)
+        self.foreground_items.draw(view)
         # draw current compound view
-        self.viewport.draw()
+        self.viewport.draw(view)
+        # draw remaining HUD elements
+        self.hud_view.draw(self.pygame_window)
 
     # only override this if you have a good reason to
     def run(self):
@@ -150,25 +149,21 @@ class Sprite(pygame.sprite.Sprite):
         
         if destx < 0:
             destx = 0
-        elif destx > self.xmax:
-            destx = self.xmax
+        elif destx > xmax:
+            destx = xmax
 
         if desty < 0:
             desty = 0
-        elif desty > self.ymax:
-            desty = self.ymax
+        elif desty > ymax:
+            desty = ymax
+
         # Check moves against the view's internal boundaries
-        
-        for x in range(destx,self.rect.width + destx):
-            for y in range(desty,self.rect.height + desty):
-                if world.current_internal_boundaries[x][y] == 1:
-                    broken = True
-                    break
-            if broken:
-                break
-        else:
+        chunk = self.world.current_internal_boundaries[desty:desty + self.rect.height,destx:destx + self.rect.width]
+        if np.all(chunk):
             self.x = destx
             self.y = desty
+
+
 
     # don't override this
     # WARNING: Fails silently!!
@@ -184,7 +179,7 @@ class Sprite(pygame.sprite.Sprite):
 
     # don't override this
     def draw(self, view):
-        view.blit(self.image,self.rect)
+        view.blit(self.image,(self.x,self.y))
 
     # override this
     def update(self):
@@ -200,7 +195,6 @@ class Sprite(pygame.sprite.Sprite):
         if pressed[pygame.K_LEFT]:
             dx = -20
         self.move(dx,dy)
-        self.position_self()
 
 class Viewport:
     def __init__(self,view,screen):
@@ -253,8 +247,8 @@ class Viewport:
         else:
             self.rect.y = self.ymax
 
-    def draw(self):
-        self.screen.blit(self.view.subsurface(self.rect),self.screen.get_rect())
+    def draw(self,view):
+        self.screen.blit(view.subsurface(self.rect),self.screen.get_rect())
 
 class Spritesheet:
     def __init__(self,file_path,sprite_width,sprite_height,sprite_padding=0):

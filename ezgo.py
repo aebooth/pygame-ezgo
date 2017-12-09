@@ -15,7 +15,7 @@ class World:
         self.npc_sprites = pygame.sprite.Group()
         self.active_items = pygame.sprite.Group()
         self.foreground_items = pygame.sprite.Group()
-        self.player_sprite = Sprite(self, width//2,height//2)
+        self.player_sprite = Sprite(self, 0,0)
         self.hud_view = Sprite(self,0,0,image=pygame.Surface((width,height)))
         self.hud_view.image.set_alpha(0)
         self.viewport = Viewport(self.current_view,self.pygame_window)
@@ -187,13 +187,13 @@ class Sprite(pygame.sprite.Sprite):
         dy = 0
         dx = 0
         if pressed[pygame.K_UP]:
-            dy = -20
+            dy = -2
         if pressed[pygame.K_DOWN]:
-            dy = 20
+            dy = 2
         if pressed[pygame.K_RIGHT]:
-            dx = 20
+            dx = 2
         if pressed[pygame.K_LEFT]:
-            dx = -20
+            dx = -2
         self.move(dx,dy)
 
 class Viewport:
@@ -272,7 +272,7 @@ class Animation:
         self.frames = frame_sequence
         self.current_frame = 0
         # Number of frames to wait before advancing
-        self.advance_rate = 10
+        self.advance_rate = 1
         self.frame_counter = 0
 
     def get_frame(self):

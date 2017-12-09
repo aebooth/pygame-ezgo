@@ -31,19 +31,18 @@ world = ezgo.World()
 world.add_view("level1",pygame.image.load("map.png"),pygame.image.load("map_boundaries.png"))
 world.set_current_view("level1")
 
-superblock = ezgo.Spritesheet("superblock.png",50,50,10)
-superblock.add_sequence("move_right",0,2)
-superblock.add_sequence("move_left",1,2)
-superblock.add_sequence("move_up",2,2)
-superblock.add_sequence("move_down",3,2)
+superblock = ezgo.Spritesheet("aPiratedSpritesheet.png",64,64,0)
+superblock.add_sequence("move_right",3,9)
+superblock.add_sequence("move_left",1,9)
+superblock.add_sequence("move_up",0,9)
+superblock.add_sequence("move_down",2,9)
 
 world.player_sprite.animations["move_right"] = ezgo.Animation(superblock.sequences["move_right"])
 world.player_sprite.animations["move_left"] = ezgo.Animation(superblock.sequences["move_left"])
 world.player_sprite.animations["move_up"] = ezgo.Animation(superblock.sequences["move_up"])
 world.player_sprite.animations["move_down"] = ezgo.Animation(superblock.sequences["move_down"])
 
-world.player_sprite.x = 0
-world.player_sprite.y = 0
+world.player_sprite.set_active_animation("move_down")
 
 world.handle_keypresses = handle_keypresses
 

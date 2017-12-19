@@ -26,6 +26,7 @@ class World:
         self.views[name] = view
         if view_internal_boundaries is None:
             self.internal_boundaries[name] = np.zeros((view.get_rect().height,view.get_rect().width))
+            self.internal_boundaries[name] = self.internal_boundaries[name] + 255
         else:
             arr = np.zeros((view_internal_boundaries.get_rect().width,view_internal_boundaries.get_rect().height),np.int32)
             pygame.pixelcopy.surface_to_array(arr, view_internal_boundaries, 'G')
